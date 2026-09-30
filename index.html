@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DateMe — Invite someone on a date</title>
+<style>
+:root{--pink:#ff4f8b;--rose:#fff0f5;--ink:#241b24;--muted:#7d6e78;--white:#fff}
+*{box-sizing:border-box} body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;color:var(--ink);background:linear-gradient(135deg,#fff7fa,#ffe9f1);min-height:100vh}
+.wrap{max-width:900px;margin:auto;padding:28px 18px 60px}.brand{text-align:center;font-weight:900;font-size:30px;letter-spacing:-1px;margin:8px 0 28px}.brand span{color:var(--pink)}
+.card{background:#fff;border:1px solid #f7dbe5;border-radius:28px;padding:28px;box-shadow:0 18px 60px #d66d9420;margin:auto;max-width:700px}
+h1{font-size:34px;line-height:1.05;margin:0 0 10px;letter-spacing:-1.5px}.sub{color:var(--muted);margin:0 0 24px}
+label{display:block;font-size:13px;font-weight:800;margin:16px 0 7px}input,textarea{width:100%;padding:13px 14px;border:1px solid #ead7df;border-radius:13px;font:inherit;outline:none}input:focus,textarea:focus{border-color:var(--pink);box-shadow:0 0 0 4px #ff4f8b16}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.times{display:flex;flex-wrap:wrap;gap:8px}.time{background:#fff;border:1px solid #e8d8df;padding:9px 12px;border-radius:999px;cursor:pointer}.time.active{background:var(--pink);color:#fff;border-color:var(--pink)}
+button{border:0;border-radius:14px;padding:14px 18px;font-weight:900;font-size:15px;cursor:pointer}.primary{background:var(--pink);color:white;width:100%;margin-top:24px}.secondary{background:#fff0f5;color:#b72d61}
+.hidden{display:none}.linkbox{background:#fff6f9;border-radius:16px;padding:14px;word-break:break-all;margin:14px 0}.small{font-size:12px;color:var(--muted)}
+.letter-page{position:relative;overflow:hidden;min-height:520px;display:flex;align-items:center;justify-content:center;text-align:center}.letter{background:#fff;border:1px solid #f1d8e1;border-radius:22px;padding:32px;max-width:560px;position:relative;z-index:2;box-shadow:0 18px 50px #b92c6518}.heart{position:absolute;animation:float 5s linear infinite;opacity:.65;font-size:24px}@keyframes float{from{transform:translateY(520px) rotate(0)}to{transform:translateY(-80px) rotate(180deg)}}
+.yes{background:var(--pink);color:#fff;min-width:130px}.no{background:#f5eef1;color:#6f6068;min-width:130px;position:relative}.actions{display:flex;justify-content:center;gap:12px;min-height:58px;align-items:center}.choices{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:20px}.choice{border:1px solid #ead7df;background:#fff;padding:12px 17px;border-radius:13px;cursor:pointer}.choice.selected{background:#241b24;color:#fff}.success{font-size:18px;font-weight:800}.tabs{display:flex;gap:8px;margin-bottom:18px}.tabs button{flex:1}.activeTab{background:#241b24;color:#fff}.notice{padding:12px 14px;background:#f7f7f7;border-radius:12px;margin-top:14px}
+@media(max-width:650px){.grid{grid-template-columns:1fr}h1{font-size:29px}.card{padding:22px}.actions{flex-wrap:wrap}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="brand">Date<span>Me</span> 💌</div>
+
+<div id="creator" class="card">
+  <h1>Invite-la à un date.</h1>
+  <p class="sub">Crée une invitation mignonne, puis envoie-lui le lien.</p>
+  <div class="grid">
+    <div><label>Ton prénom</label><input id="from" placeholder="Dan"></div>
+    <div><label>Son prénom</label><input id="to" placeholder="Emma"></div>
+  </div>
+  <label>Où allez-vous ?</label><input id="place" placeholder="Au cinéma Pathé">
+  <label>Qu'est-ce que vous allez faire ?</label><input id="activity" placeholder="Voir un film et prendre un verre">
+  <div class="grid">
+    <div><label>Date</label><input id="date" type="date"></div>
+    <div><label>Ton e-mail</label><input id="email" type="email" placeholder="dan@email.com"></div>
+  </div>
+  <label>Les horaires disponibles</label>
+  <div class="times" id="times"></div>
+  <label>Petit mot (facultatif)</label><textarea id="message" rows="3" placeholder="J'ai une petite proposition pour toi... ❤️"></textarea>
+  <button class="primary" onclick="generate()">Créer mon invitation 💌</button>
+</div>
+
+<div id="share" class="card hidden">
+  <h1>C'est prêt ! 💖</h1>
+  <p class="sub">Voici le lien à envoyer à <b id="shareTo"></b>.</p>
+  <div class="linkbox" id="shareLink"></div>
+  <button class="primary" onclick="copyLink()">Copier le lien</button>
+  <button class="secondary" style="width:100%;margin-top:10px" onclick="showInvite()">Voir la lettre</button>
+  <div class="notice"><b>Mode démo :</b> l'e-mail réel sera ajouté quand le site sera mis en ligne.</div>
+</div>
+
+<div id="invite" class="card letter-page hidden"></div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+let selectedTimes=[];
+let data={};
+
+function initTimes(){
+  const box=$('times');
+  ['14:00','15:00','16:00','17:00','18:00','19:00','20:00'].forEach(t=>{
+    const b=document.createElement('button'); b.type='button'; b.className='time'; b.textContent=t;
+    b.onclick=()=>{b.classList.toggle('active'); selectedTimes=b.classList.contains('active')?[...selectedTimes,t]:selectedTimes.filter(x=>x!==t)};
+    box.appendChild(b);
+  });
+}
+initTimes();
+
+function generate(){
+  if(!$('from').value||!$('to').value||!$('place').value||!$('activity').value||!$('date').value||!$('email').value||!selectedTimes.length){
+    alert('Remplis tous les champs obligatoires et sélectionne au moins une heure.'); return;
+  }
+  data={from:$('from').value,to:$('to').value,place:$('place').value,activity:$('activity').value,date:$('date').value,email:$('email').value,message:$('message').value,times:selectedTimes.sort()};
+  localStorage.setItem('dateme',JSON.stringify(data));
+  const token=btoa(unescape(encodeURIComponent(JSON.stringify(data)))).replace(/=+$/,'');
+  const url=location.href.split('#')[0]+'#invite='+token;
+  $('shareTo').textContent=data.to;$('shareLink').textContent=url;
+  $('creator').classList.add('hidden');$('share').classList.remove('hidden');
+}
+function copyLink(){navigator.clipboard?.writeText($('shareLink').textContent); alert('Lien copié !');}
+function showInvite(){location.hash='invite=preview'; renderInvite();}
+function heartBurst(){
+  for(let i=0;i<22;i++){let h=document.createElement('div');h.className='heart';h.textContent=['♥','♡','💕','✨'][i%4];h.style.left=(Math.random()*100)+'%';h.style.animationDelay=(Math.random()*3)+'s';h.style.fontSize=(16+Math.random()*18)+'px';$('invite').appendChild(h)}
+}
+function renderInvite(){
+  let d=JSON.parse(localStorage.getItem('dateme')||'null'); if(!d)return;
+  $('creator').classList.add('hidden');$('share').classList.add('hidden');$('invite').classList.remove('hidden');
+  $('invite').innerHTML=`<div class="letter" style="cursor:pointer;max-width:420px" onclick="openLetter()">
+    <div style="font-size:78px;line-height:1">💌</div>
+    <h1 style="font-size:27px">Tu as reçu une lettre</h1>
+    <p class="sub" style="margin-bottom:8px">Clique dessus pour l'ouvrir</p>
+    <div style="font-size:13px;color:#b72d61">Une petite surprise t'attend 💕</div>
+  </div>`;
+  heartBurst();
+}
+let noAttempts=0;
+function openLetter(){
+  let d=JSON.parse(localStorage.getItem('dateme')||'null');
+  noAttempts=0;
+  $('invite').innerHTML=`<div class="letter" id="dateLetter">
+    <div style="font-size:40px">💗</div>
+    <h1 style="font-size:31px">Acceptes-tu un date avec ${esc(d.from)} ?</h1>
+    <p style="font-size:20px;font-weight:800;margin:20px 0 28px">${esc(d.activity)}</p>
+    <div class="actions" id="dateActions" style="position:relative;min-height:90px">
+      <button class="yes" id="yesBtn" onclick="yes()">Oui 💖</button>
+      <button class="no" id="noBtn" onclick="runAway()">Non</button>
+    </div>
+  </div>`;
+  heartBurst();
+}
+function runAway(){
+  const b=$('noBtn'), y=$('yesBtn');
+  if(!b||!y)return;
+  noAttempts++;
+
+  // Le bouton Oui grossit à chaque tentative.
+  const sizes=['130px','155px','185px','220px'];
+  const scales=[1,1.15,1.3,1.5];
+  y.style.minWidth=sizes[Math.min(noAttempts-1,3)];
+  y.style.transform=`scale(${scales[Math.min(noAttempts-1,3)]})`;
+  y.style.transition='all .25s ease';
+
+  // Le bouton Non se déplace à des endroits bien visibles.
+  const positions=[
+    {left:'8%',top:'8%'},
+    {left:'8%',top:'78%'},
+    {left:'76%',top:'8%'},
+    {left:'76%',top:'78%'}
+  ];
+
+  if(noAttempts<=4){
+    b.style.position='fixed';
+    b.style.zIndex='20';
+    b.style.transition='all .25s ease';
+    b.style.left=positions[noAttempts-1].left;
+    b.style.top=positions[noAttempts-1].top;
+    b.textContent=noAttempts===4?'Non 🙈':'Non';
+  }
+
+  // Après quatre déplacements, le bouton disparaît.
+  if(noAttempts>=4){
+    setTimeout(()=>{b.style.display='none';},350);
+    y.style.transform='scale(1.65)';
+  }
+}
+function yes(){
+ $('invite').innerHTML=`<div class="letter"><div style="font-size:48px">🥰</div><h1>Oui ! 💖</h1><p class="sub">Choisis une heure :</p><div class="choices" id="choices"></div><button class="primary" onclick="confirmDate()">Confirmer 💕</button></div>`;
+ const c=$('choices'); data.times.forEach(t=>{let b=document.createElement('button');b.className='choice';b.textContent=t;b.onclick=()=>{document.querySelectorAll('.choice').forEach(x=>x.classList.remove('selected'));b.classList.add('selected');data.selected=t};c.appendChild(b)});
+ heartBurst();
+}
+function confirmDate(){
+ if(!data.selected){alert('Choisis une heure 😊');return}
+ $('invite').innerHTML=`<div class="letter"><div style="font-size:55px">💖</div><h1>Date confirmé !</h1><p class="success">${esc(data.selected)} · ${esc(data.place)}</p><p>${esc(data.from)} recevra la confirmation par e-mail à <b>${esc(data.email)}</b>.</p><div class="notice">📩 Un vrai e-mail de confirmation sera envoyé automatiquement dans la version finale.</div></div>`;
+ heartBurst();
+ localStorage.setItem('dateme',JSON.stringify(data));
+}
+function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function load(){
+ if(location.hash.startsWith('#invite=')){
+   const token=location.hash.substring(8);
+   if(token && token!=='preview'){
+     try{
+       const decoded=decodeURIComponent(escape(atob(token)));
+       const invitation=JSON.parse(decoded);
+       localStorage.setItem('dateme',JSON.stringify(invitation));
+     }catch(e){}
+   }
+   renderInvite();
+ }
+}
+load();
+</script>
+</body>
+</html>
